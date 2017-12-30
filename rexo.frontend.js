@@ -1,6 +1,13 @@
-var template = require(__dirname + '/controller.template.js');
+var winston = require('winston'),
+    log = winston.log,
+    template = require(__dirname + '/controller.template.js');
 
+winston.level = process.env.LOG_LEVEL || 'info';
+
+//Helper used to get a response object for a given error
 var serverError = function(error) {
+  log('error', 'Error Rendering Template! :( \n', error);
+
   return {
     statusCode: 500,
     body: "<p>" + error.message +"</p>"
@@ -8,6 +15,8 @@ var serverError = function(error) {
 };
 
 module.exports = function(event, context, callback) {
+  log('debug', 'Request for %s recieved.', event.path);
+
   var res = {
     statusCode: 200,
     headers: {

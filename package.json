@@ -11,7 +11,8 @@
     "marked": "^0.3.6",
     "nunjucks": "^3.0.1",
     "nunjucks-markdown": "^2.0.1",
-    "request": "^2.83.0"
+    "request": "^2.83.0",
+    "winston": "^2.4.0"
   },
   "devDependencies": {},
   "scripts": {

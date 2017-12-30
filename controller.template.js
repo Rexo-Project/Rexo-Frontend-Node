@@ -1,5 +1,7 @@
 module.exports = (function() {
-  var async = require('async'),
+  var winston = require('winston'),
+      log = winston.log,
+      async = require('async'),
       jucks = require('nunjucks'),
       njm = require('nunjucks-markdown'),
       marked = require('marked'),
@@ -13,6 +15,8 @@ module.exports = (function() {
       aws = require('aws-sdk'),
       compiledCache = {},
       controller = {};
+
+  winston.level = process.env.LOG_LEVEL || 'info';
   
   var nje = jucks.configure({
     autoescape:false, //Prevent nunjucks filters from autoescaping HTML
@@ -86,11 +90,13 @@ module.exports = (function() {
    */
   var getTemplate = function(name, path, cache, cb) {
     if(name && compiledCache[name]) {
+      log('debug', 'Retrieving template from cache: %s', name);
       return cb(null, compiledCache[name]);
     }
 
     var file = (process.env.TEMPLATE_PATH || '') + '/' + path;
 
+    log('debug', 'Retrieving template file: %s', file);
     if(process.env.NODE_ENV === 'development') {
       fs.readFile(file, 'utf8', getTemplateCallback(name, cache, cb));
      } else {
@@ -114,18 +120,23 @@ module.exports = (function() {
       url: process.env.DATA_API_URL + type + (key ? '/' + key : "")
     };
 
+    log('debug', 'Requesting API Data: %s', reqOptions.url);
+
     //Add the API Key to the header, if provided
     if(process.env.DATA_API_KEY) {
       reqOptions.headers = { 'x-api-key': process.env.DATA_API_KEY };
     }
 
     request(reqOptions, function(err, res, body) {
-        if(res.statusCode != 200 && res.statusCode != 404) {
-            err = new Error('Request to ' + reqOptions.url +
-              ' returned ' + res.statusCode);
-        }
+      log('debug', 'API Returned a status of %d', res.statusCode);
+      log('silly', 'Body Returned:\n', body);
 
-        cb(err, JSON.parse(body || "{}"));
+      if(res.statusCode != 200 && res.statusCode != 404) {
+          err = new Error('Request to ' + reqOptions.url +
+            ' returned ' + res.statusCode);
+      }
+
+      cb(err, JSON.parse(body || "{}"));
     });
   };
 
@@ -147,6 +158,8 @@ module.exports = (function() {
    * to run when page rendering is complete, or if error.
    */
   var buildPage = function(page, routeParams, callback) {
+    log('debug', 'Building Page %s', page.Slug);
+
     var asyncCalls = {},
         pageTemplate, tpl,
         pageCtx = {
@@ -214,6 +227,7 @@ module.exports = (function() {
         }
         
         //if the page template is not a string, it is a compiled template
+        log('debug', 'Compiling Page %s', page.Slug);
         if(typeof pageTemplate !== 'string') {
           pageTemplate.render(pageCtx, renderCallback.bind(callback));
         } else {
@@ -239,8 +253,10 @@ module.exports = (function() {
       params = ['home'];
     }
 
+    log('debug', 'Retrieving Page [%s]', params[0]);
     getData('page', params[0].toLowerCase(), function(err, pageData) {
-      console.log(pageData);
+      log('silly', 'Page Data Retreived:\n', pageData);
+
       if(pageData && pageData.Slug) {
         buildPage(pageData, params.slice(1), callback);
       } else {
